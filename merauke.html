@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
@@ -7,14 +7,22 @@
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  
+
   <style>
     #map {
       width: 100%;
       height: 600px;
+    }
+
+    .label-text {
+      font-size: 12px;
+      font-weight: bold;
+      color: #000000;
+      background-color: rgba(255, 255, 255, 0.6);
+      padding: 2px 4px;
+      border-radius: 4px;
+      white-space: nowrap;
     }
   </style>
 </head>
@@ -23,15 +31,12 @@
   <div id="map"></div>
 
   <script>
-    // Inisialisasi peta
-    var map = L.map('map').setView([-7.8, 139.7], 8); // Koordinat Merauke
+    var map = L.map('map').setView([-7.8, 139.7], 8);
 
-    // Tambahkan basemap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // Warna berdasarkan nama kecamatan
     function getColor(namobj) {
       return {
         "Merauke": "#e41a1c",
@@ -39,11 +44,9 @@
         "Sota": "#4daf4a",
         "Naukenjerai": "#984ea3",
         "Ulilin": "#ff7f00"
-        // Tambahkan nama lain jika perlu
-      }[namobj] || "#999999"; // default abu-abu
+      }[namobj] || "#999999";
     }
 
-    // Gaya fitur
     function style(feature) {
       return {
         fillColor: getColor(feature.properties.NAMOBJ),
@@ -54,7 +57,6 @@
       };
     }
 
-    // Tambahkan GeoJSON dari GitHub
     var geojsonUrl = "https://raw.githubusercontent.com/LintasBumi/geojson/master/Merauke_Kecamatan.geojson";
 
     fetch(geojsonUrl)
@@ -63,7 +65,20 @@
         L.geoJSON(data, {
           style: style,
           onEachFeature: function (feature, layer) {
+            // Tambahkan popup
             layer.bindPopup("<b>Kecamatan:</b> " + feature.properties.NAMOBJ);
+
+            // Hitung centroid (tengah poligon)
+            var center = layer.getBounds().getCenter();
+
+            // Tambahkan label dengan DivIcon
+            var label = L.divIcon({
+              className: 'label-text',
+              html: feature.properties.NAMOBJ,
+              iconSize: [100, 20]
+            });
+
+            L.marker(center, { icon: label, interactive: false }).addTo(map);
           }
         }).addTo(map);
       });
