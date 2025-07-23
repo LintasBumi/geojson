@@ -28,28 +28,29 @@
     .legend {
       background: white;
       padding: 10px;
+      font-size: 14px;
       line-height: 1.5em;
       color: #333;
       border-radius: 5px;
       box-shadow: 0 0 5px #ccc;
     }
 
-    .legend i {
-      width: 18px;
-      height: 18px;
-      float: left;
-      margin-right: 8px;
-      opacity: 0.7;
+    .legend input {
+      margin-right: 5px;
     }
 
-    .legend-toggle {
-      background: #007bff;
-      color: white;
-      border: none;
-      padding: 4px 8px;
-      margin-bottom: 5px;
-      cursor: pointer;
-      border-radius: 4px;
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .legend-color {
+      width: 16px;
+      height: 16px;
+      margin-right: 6px;
+      display: inline-block;
+      border: 1px solid #999;
     }
   </style>
 </head>
@@ -64,15 +65,16 @@
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    function getColor(namobj) {
-      return {
-        "Merauke": "#e41a1c",
-        "Muting": "#377eb8",
-        "Sota": "#4daf4a",
-        "Naukenjerai": "#984ea3",
-        "Ulilin": "#ff7f00"
-      }[namobj] || "#999999";
-    }
+    var kecamatanColors = {
+      "Merauke": "#e41a1c",
+      "Muting": "#377eb8",
+      "Sota": "#4daf4a",
+      "Naukenjerai": "#984ea3",
+      "Ulilin": "#ff7f00"
+    };
+
+    // Menyimpan layer berdasarkan nama kecamatan
+    var kecamatanLayers = {};
 
     function style(feature) {
       return {
@@ -84,61 +86,71 @@
       };
     }
 
+    function getColor(namobj) {
+      return kecamatanColors[namobj] || "#999999";
+    }
+
     var geojsonUrl = "https://raw.githubusercontent.com/LintasBumi/geojson/master/Merauke_Kecamatan.geojson";
 
     fetch(geojsonUrl)
       .then(response => response.json())
       .then(data => {
-        L.geoJSON(data, {
-          style: style,
-          onEachFeature: function (feature, layer) {
-            layer.bindPopup("<b>Kecamatan:</b> " + feature.properties.NAMOBJ);
-            var center = layer.getBounds().getCenter();
-            var label = L.divIcon({
-              className: 'label-text',
-              html: feature.properties.NAMOBJ,
-              iconSize: [100, 20]
-            });
-            L.marker(center, { icon: label, interactive: false }).addTo(map);
-          }
-        }).addTo(map);
+        data.features.forEach(function (feature) {
+          var nama = feature.properties.NAMOBJ;
+          var layer = L.geoJSON(feature, {
+            style: style,
+            onEachFeature: function (feature, layer) {
+              layer.bindPopup("<b>Kecamatan:</b> " + nama);
+              var center = layer.getBounds().getCenter();
+              var label = L.divIcon({
+                className: 'label-text',
+                html: nama,
+                iconSize: [100, 20]
+              });
+              L.marker(center, { icon: label, interactive: false }).addTo(map);
+            }
+          }).addTo(map);
+
+          kecamatanLayers[nama] = layer;
+        });
+
+        // Setelah layer siap, buat legenda
+        addLegend();
       });
 
-    // LEGEND
-    var legend = L.control({ position: 'bottomright' });
+    function addLegend() {
+      var legend = L.control({ position: 'bottomright' });
 
-    legend.onAdd = function (map) {
-      var div = L.DomUtil.create('div', 'legend');
+      legend.onAdd = function (map) {
+        var div = L.DomUtil.create('div', 'legend');
+        div.innerHTML = '<b>Tampilkan Kecamatan</b><br>';
 
-      // Tombol toggle
-      var toggleBtn = '<button class="legend-toggle" onclick="toggleLegend()">Toggle Legend</button>';
-      div.innerHTML = toggleBtn;
+        for (var nama in kecamatanLayers) {
+          var color = getColor(nama);
+          div.innerHTML += `
+            <div class="legend-item">
+              <input type="checkbox" id="check-${nama}" checked onchange="toggleLayer('${nama}')">
+              <div class="legend-color" style="background:${color}"></div>${nama}
+            </div>
+          `;
+        }
 
-      // Isi legenda
-      div.innerHTML += `
-        <div id="legend-content">
-          <i style="background:#e41a1c"></i> Merauke<br>
-          <i style="background:#377eb8"></i> Muting<br>
-          <i style="background:#4daf4a"></i> Sota<br>
-          <i style="background:#984ea3"></i> Naukenjerai<br>
-          <i style="background:#ff7f00"></i> Ulilin<br>
-          <i style="background:#999999"></i> Lainnya<br>
-        </div>
-      `;
-      return div;
-    };
+        return div;
+      };
 
-    legend.addTo(map);
-
-    // Fungsi toggle untuk legend
-    function toggleLegend() {
-      var content = document.getElementById("legend-content");
-      if (content.style.display === "none") {
-        content.style.display = "block";
-      } else {
-        content.style.display = "none";
-      }
+      legend.addTo(map);
     }
+
+    // Fungsi global agar bisa dipanggil dari checkbox onchange
+    window.toggleLayer = function (nama) {
+      var checkbox = document.getElementById("check-" + nama);
+      var layer = kecamatanLayers[nama];
+      if (checkbox.checked) {
+        map.addLayer(layer);
+      } else {
+        map.removeLayer(layer);
+      }
+    };
   </script>
 </body>
 </html>
